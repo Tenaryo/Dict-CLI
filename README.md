@@ -6,7 +6,7 @@ A simple command-line dictionary tool using Youdao Dictionary API.
 
 ```bash
 # Clone the repository
-git clone https://github.com/<your-username>/Dict-CLI.git
+git clone https://github.com/Tenaryo/Dict-CLI.git
 cd Dict-CLI
 
 # Install to your PATH
