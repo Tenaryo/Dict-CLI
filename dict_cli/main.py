@@ -7,6 +7,8 @@ import urllib.request
 import urllib.parse
 import urllib.error
 
+import re
+
 
 API_URL = "https://dict.youdao.com/jsonapi"
 
@@ -27,8 +29,9 @@ def fetch_word_data(word: str) -> dict:
         sys.exit(1)
 
 
-def extract_translations(data: dict) -> list[str]:
-    """Extract word translations from API response."""
+
+def extract_translations(data: dict) -> list[dict]:
+    """Extract word translations with part of speech from API response."""
     translations = []
     
     # Primary translation from ec (English-Chinese)
@@ -43,11 +46,23 @@ def extract_translations(data: dict) -> list[str]:
                             if "l" in tr and "i" in tr["l"]:
                                 meanings = tr["l"]["i"]
                                 if isinstance(meanings, list):
-                                    translations.extend(meanings)
+                                    for m in meanings:
+                                        translations.append(parse_translation(m))
                                 elif isinstance(meanings, str):
-                                    translations.append(meanings)
+                                    translations.append(parse_translation(meanings))
     
     return translations
+
+
+def parse_translation(text: str) -> dict:
+    """Parse translation text to extract part of speech and meaning."""
+    # Match patterns like "n. xxx", "v. xxx", "adj. xxx", "adv. xxx", etc.
+    match = re.match(r'^([a-zA-Z\.\【\】]+)\s+(.+)$', text)
+    if match:
+        pos = match.group(1).strip()
+        meaning = match.group(2).strip()
+        return {"pos": pos, "meaning": meaning}
+    return {"pos": "", "meaning": text}
 
 
 def extract_examples(data: dict, count: int = 3) -> list[dict]:
@@ -68,22 +83,35 @@ def extract_examples(data: dict, count: int = 3) -> list[dict]:
     return examples
 
 
-def format_output(word: str, translations: list[str], examples: list[dict]) -> str:
+def format_output(word: str, translations: list[dict], examples: list[dict]) -> str:
     """Format the output for display."""
     lines = []
     
+    # Header with word
+    lines.append(f"\033[1;36m{word}\033[0m")  # Cyan bold word
+    lines.append("─" * 40)
+    
     # Translations
     if translations:
-        lines.append(" ".join(translations))
+        for i, tr in enumerate(translations, 1):
+            pos = tr.get("pos", "")
+            meaning = tr.get("meaning", "")
+            if pos:
+                # Format: "1. n. meaning"
+                lines.append(f"  \033[33m{pos}\033[0m {meaning}")
+            else:
+                lines.append(f"  {meaning}")
     else:
-        lines.append("未找到翻译")
+        lines.append("  未找到翻译")
     
     # Examples
     if examples:
         lines.append("")
-        lines.append("例句:")
+        lines.append("\033[1m例句:\033[0m")
         for i, ex in enumerate(examples, 1):
-            lines.append(f"{i}. {ex['en']}")
+            lines.append(f"  \033[90m{i}.\033[0m {ex['en']}")
+            if ex.get('zh'):
+                lines.append(f"     \033[90m{ex['zh']}\033[0m")
     
     return "\n".join(lines)
 
